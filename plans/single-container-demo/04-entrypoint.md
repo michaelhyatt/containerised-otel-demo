@@ -11,11 +11,14 @@ cleanly so `docker stop` does not leave a wedged daemon or orphaned state.
 
 ## Steps
 
-1. Start `dockerd` in the background with `--data-root /demo-docker` and
+1. Start the daemon in the background with `--data-root /demo-docker` and
    `--storage-driver overlay2`, logging to a file so daemon noise does not drown
-   the application logs. Fail fast with a clear message if overlay2 is
-   unavailable and the daemon falls back to `vfs`, which would be unusably slow
-   and disk-hungry.
+   the application logs. Go through the base image's `dockerd-entrypoint.sh`
+   rather than calling `dockerd` directly: it runs the `dind` wrapper, which
+   performs the cgroup v2 nesting setup. Without it the daemon starts fine and
+   then every inner container fails with "cannot enter cgroupv2 ... with domain
+   controllers". Fail fast with a clear message if overlay2 is unavailable and
+   the daemon falls back to `vfs`, which would be unusably slow and disk-hungry.
 2. Poll `docker info` until the daemon answers, with a bounded timeout.
 3. Validate `OTLP_EXPORT_PROTOCOL` against `grpc`/`http`/`both`, rejecting
    unknown values with a clear error. Compose interpolates the value into the
