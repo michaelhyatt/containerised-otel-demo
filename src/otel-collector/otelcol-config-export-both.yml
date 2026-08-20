@@ -22,7 +22,7 @@ exporters:
     endpoint: ${env:OTLP_EXPORT_ENDPOINT_GRPC}
     tls:
       insecure: ${env:OTLP_EXPORT_INSECURE}
-    headers: ${env:OTLP_EXPORT_HEADERS}
+    headers: ${env:OTLP_EXPORT_HEADERS_GRPC}
     retry_on_failure:
       enabled: true
       initial_interval: 5s
@@ -36,7 +36,7 @@ exporters:
     encoding: proto
     tls:
       insecure: ${env:OTLP_EXPORT_INSECURE}
-    headers: ${env:OTLP_EXPORT_HEADERS}
+    headers: ${env:OTLP_EXPORT_HEADERS_HTTP}
     retry_on_failure:
       enabled: true
       initial_interval: 5s

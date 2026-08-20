@@ -50,6 +50,8 @@ mid-shutdown.
 | `OTLP_EXPORT_ENDPOINT_GRPC` | `otlp-destination-not-configured:4317` | host:port for OTLP/gRPC |
 | `OTLP_EXPORT_ENDPOINT_HTTP` | `http://otlp-destination-not-configured:4318` | base URL for OTLP/HTTP |
 | `OTLP_EXPORT_HEADERS` | `{}` | inline map of headers sent with every request |
+| `OTLP_EXPORT_HEADERS_GRPC` | `${OTLP_EXPORT_HEADERS}` | headers for the gRPC exporter only |
+| `OTLP_EXPORT_HEADERS_HTTP` | `${OTLP_EXPORT_HEADERS}` | headers for the HTTP exporter only |
 | `OTLP_EXPORT_INSECURE` | `true` | skip TLS verification |
 
 Both transports send OTLP protobuf; the HTTP one sends
@@ -74,7 +76,9 @@ docker run ... \
 ```
 
 `both` sends every signal twice, once per transport, so point the two endpoints
-at different destinations unless you want duplicates.
+at different destinations unless you want duplicates. Destinations that issue a
+separate token per endpoint need `OTLP_EXPORT_HEADERS_GRPC` and
+`OTLP_EXPORT_HEADERS_HTTP` rather than the shared `OTLP_EXPORT_HEADERS`.
 
 If the destination is unreachable the demo still runs. The collector queues,
 retries and logs the endpoint it cannot reach, which is why the defaults are a
