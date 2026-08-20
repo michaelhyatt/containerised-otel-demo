@@ -9,38 +9,133 @@ Inside the container, a nested Docker daemon runs the same
 [`compose.yaml`](../compose.yaml) the rest of the demo uses, layered with
 [`compose.single-container.yaml`](../compose.single-container.yaml).
 
-## Quick start
+## How to run
+
+You need Docker with enough room for a privileged container: 4 GB of memory and
+about 4 GB of disk for the first image pull. Run the commands from the
+repository root.
+
+### 1. Build the image
 
 ```bash
 make build-single-container
-
-OTLP_EXPORT_PROTOCOL=grpc \
-OTLP_EXPORT_ENDPOINT_GRPC=otlp.example.com:4317 \
-make start-single-container
 ```
 
-The first start pulls about 4 GB of service images inside the container and
-takes several minutes. Follow it with `docker logs -f otel-demo-single`. The
-images are cached in the `otel-demo-single-data` volume, so later starts take
-about a minute.
+That produces `otel-demo-single:latest` (about 135 MB). It does not pull the
+demo service images yet.
 
-Without Make:
+### 2. Point it at your OTLP destination
+
+Export the destination in the same shell you will use to start the container.
+`make start-single-container` forwards these variables into `docker run`.
+
+OTLP/gRPC (host:port, no scheme):
 
 ```bash
-docker build -f single-container/Dockerfile -t otel-demo-single:latest .
-docker run --detach --privileged --name otel-demo-single \
-  --memory=4g --stop-timeout 60 \
-  --publish 8080:8080 --publish 8013:8013 --publish 8016:8016 \
-  --env OTLP_EXPORT_PROTOCOL=grpc \
-  --env OTLP_EXPORT_ENDPOINT_GRPC=otlp.example.com:4317 \
-  --volume otel-demo-single-data:/demo-docker \
-  otel-demo-single:latest
+export OTLP_EXPORT_PROTOCOL=grpc
+export OTLP_EXPORT_ENDPOINT_GRPC=otlp.example.com:4317
+export OTLP_EXPORT_HEADERS_GRPC='{"authorization": "Bearer <token>"}'
+export OTLP_EXPORT_INSECURE=true
+```
+
+OTLP/HTTP (base URL, protobuf):
+
+```bash
+export OTLP_EXPORT_PROTOCOL=http
+export OTLP_EXPORT_ENDPOINT_HTTP=http://otlp.example.com:4318
+export OTLP_EXPORT_HEADERS_HTTP='{"authorization": "Bearer <token>"}'
+export OTLP_EXPORT_INSECURE=true
+```
+
+Both at once, with a different token per endpoint:
+
+```bash
+export OTLP_EXPORT_PROTOCOL=both
+export OTLP_EXPORT_ENDPOINT_GRPC=otlp.example.com:4317
+export OTLP_EXPORT_ENDPOINT_HTTP=http://otlp.example.com:4318
+export OTLP_EXPORT_HEADERS_GRPC='{"authorization": "Bearer <grpc-token>"}'
+export OTLP_EXPORT_HEADERS_HTTP='{"authorization": "Bearer <http-token>"}'
+export OTLP_EXPORT_INSECURE=true
+```
+
+Use `OTLP_EXPORT_INSECURE=false` when the destination presents a certificate
+you expect to verify. See [Choosing a destination](#choosing-a-destination)
+for the full variable list.
+
+### 3. Start the container
+
+```bash
+make start-single-container
 ```
 
 `--privileged` is required: the nested daemon cannot start without it.
 `--stop-timeout 60` matters too, because stopping 19 services takes around 30
 seconds and Docker's default 10 second grace period kills the container
 mid-shutdown.
+
+The first start pulls about 4 GB of service images inside the container and
+takes several minutes. Follow it with:
+
+```bash
+docker logs -f otel-demo-single
+```
+
+You are waiting for `single-container: demo is up; the UI is on port 8080`.
+The images are cached in the `otel-demo-single-data` volume, so later starts
+take about a minute.
+
+If a previous `otel-demo-single` container is still around, stop it first:
+
+```bash
+make stop-single-container
+```
+
+### 4. Open the demo
+
+| URL | What you get |
+|---|---|
+| <http://localhost:8080> | shop UI |
+| <http://localhost:8080/feature> | feature flags and failure scenarios |
+| <http://localhost:8016> | flagd OFREP, for scripting flags |
+| <http://localhost:10000> | Envoy admin |
+
+The load generator starts on its own. After a minute you should see traces,
+metrics and logs at your destination, including `frontend-web` spans from the
+browser scenario.
+
+### 5. Stop
+
+```bash
+make stop-single-container
+```
+
+That stops and removes the container. The `otel-demo-single-data` volume is
+left in place so the next start does not re-pull the service images.
+
+### Without Make
+
+```bash
+docker build -f single-container/Dockerfile -t otel-demo-single:latest .
+docker volume create otel-demo-single-data
+docker run --detach --privileged --name otel-demo-single \
+  --memory=4g --stop-timeout 60 \
+  --publish 8080:8080 --publish 10000:10000 \
+  --publish 8013:8013 --publish 8016:8016 \
+  --publish 4317:4317 --publish 4318:4318 \
+  --env OTLP_EXPORT_PROTOCOL \
+  --env OTLP_EXPORT_ENDPOINT_GRPC \
+  --env OTLP_EXPORT_ENDPOINT_HTTP \
+  --env OTLP_EXPORT_HEADERS \
+  --env OTLP_EXPORT_HEADERS_GRPC \
+  --env OTLP_EXPORT_HEADERS_HTTP \
+  --env OTLP_EXPORT_INSECURE \
+  --volume otel-demo-single-data:/demo-docker \
+  otel-demo-single:latest
+```
+
+`make start-single-container` publishes 4317 and 4318, which collides with a
+collector already listening on those ports on the host. Drop those two
+`--publish` flags if you are running your OTLP destination locally.
 
 ## Choosing a destination
 
@@ -98,10 +193,6 @@ which is loaded last and merges into the exporter definitions.
 | 8016 | flagd OFREP endpoint |
 | 10000 | Envoy admin |
 | 4317 / 4318 | the demo's own collector, if you want to feed telemetry into it |
-
-`make start-single-container` publishes 4317 and 4318, which collides with a
-collector already listening on those ports on the host. Drop those two
-`--publish` flags if you are running your OTLP destination locally.
 
 `/jaeger`, `/grafana` and `/telemetry` return 503: those services are
 deliberately absent.
