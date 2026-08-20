@@ -103,11 +103,12 @@
       }
     },
     "loadGeneratorVUs": {
-      "defaultVariant": "5",
+      "defaultVariant": "2",
       "description": "Number of concurrent virtual users the load generator's HTTP scenario runs. Changes take effect on the wrapper's next poll, restarting k6.",
       "state": "ENABLED",
       "variants": {
         "10": 10,
+        "2": 2,
         "25": 25,
         "5": 5,
         "50": 50
