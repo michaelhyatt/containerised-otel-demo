@@ -22,7 +22,7 @@ version = "0.1.0-SNAPSHOT"
 def opentelemetryVersion = "1.65.0"
 def opentelemetryInstrumentationVersion = "2.30.0"
 def grpcVersion = "1.83.1"
-def jacksonVersion = "2.22.1"
+def jacksonVersion = "2.22.2"
 def protocVersion = "4.35.1"
 def prometheusMetricsVersion = "1.8.0"
 
