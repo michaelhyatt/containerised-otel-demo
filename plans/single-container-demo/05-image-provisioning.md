@@ -15,7 +15,11 @@ offline-capable option.
    before `up`, and the README documents mounting a volume at the data root so
    the pull happens once. Expect roughly 4–5 GB of image data and several
    minutes on the first start.
-2. Optional prebake behind a build arg (for example `PREBAKE_IMAGES=true`):
+2. Optional prebake in a second Dockerfile (`single-container/prebake/`) layered
+   on the thin image, driven by `PREBAKE_IMAGES=true` on the Make target. It
+   cannot be a build arg in the main Dockerfile: BuildKit requires the insecure
+   entitlement for any `RUN --security=insecure`, including one a shell
+   conditional would skip, which would burden every ordinary build.
    - Requires a buildx builder created with
      `--buildkitd-flags '--allow-insecure-entitlement security.insecure'` and a
      build invoked with `--allow security.insecure`; the repo already has a
