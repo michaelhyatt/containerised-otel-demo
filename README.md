@@ -46,6 +46,9 @@ your preferred deployment method:
 
 - [Docker](https://opentelemetry.io/docs/demo/docker_deployment/)
 - [Kubernetes](https://opentelemetry.io/docs/demo/kubernetes_deployment/)
+- [Single container](single-container/README.md), for running the demo in one
+  container with no bundled observability stack, exporting to your own OTLP
+  destination
 
 ## Documentation
 

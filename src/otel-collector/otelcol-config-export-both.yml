@@ -1,0 +1,62 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# Single-container export layer: OTLP protobuf over gRPC and HTTP at the same
+# time. Selected with OTLP_EXPORT_PROTOCOL=both. Every signal is sent twice,
+# once per transport, so the two destinations should differ unless the intent is
+# to duplicate the data.
+#
+# The collector replaces arrays rather than appending to them, so each pipeline
+# below restates its full exporter list. The debug exporter is deliberately not
+# repeated: it is the largest avoidable CPU cost in the base config.
+
+receivers:
+  # host_metrics is removed from the metrics pipeline below and never starts,
+  # but the collector still validates the config of unused components, and the
+  # base config points root_path at a /hostfs mount this layer does not provide.
+  host_metrics:
+    root_path: /
+
+exporters:
+  otlp/external:
+    endpoint: ${env:OTLP_EXPORT_ENDPOINT_GRPC}
+    tls:
+      insecure: ${env:OTLP_EXPORT_INSECURE}
+    headers: ${env:OTLP_EXPORT_HEADERS_GRPC}
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      queue_size: 500
+  otlphttp/external:
+    endpoint: ${env:OTLP_EXPORT_ENDPOINT_HTTP}
+    encoding: proto
+    tls:
+      insecure: ${env:OTLP_EXPORT_INSECURE}
+    headers: ${env:OTLP_EXPORT_HEADERS_HTTP}
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      queue_size: 500
+
+service:
+  pipelines:
+    traces:
+      exporters: [otlp/external, otlphttp/external, span_metrics]
+    metrics:
+      # Base list minus host_metrics, whose scrapers describe the container
+      # rather than the host and cost more CPU than anything else in the
+      # collector.
+      receivers: [docker_stats, http_check/frontend-proxy, nginx, otlp, redis, postgresql, prometheus/ad, span_metrics]
+      exporters: [otlp/external, otlphttp/external]
+    logs:
+      exporters: [otlp/external, otlphttp/external]
+    profiles:
+      exporters: [otlp/external, otlphttp/external]

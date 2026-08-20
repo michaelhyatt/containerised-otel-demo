@@ -29,6 +29,16 @@ DOCKER_COMPOSE_FILES_EXTRAS=-f compose.extras.yaml
 DOCKER_COMPOSE_FILES_TESTS=-f compose.tests.yaml
 DOCKER_COMPOSE_FILES_AGENT=-f compose.agent.yaml
 
+# Single-container mode (see single-container/README.md) runs the demo inside
+# one container rather than through Compose on the host, so it does not
+# participate in the layering above.
+SINGLE_CONTAINER_IMAGE ?= otel-demo-single:latest
+SINGLE_CONTAINER_NAME ?= otel-demo-single
+SINGLE_CONTAINER_MEMORY ?= 4g
+# Stopping the nested services takes longer than Docker's default 10s grace.
+SINGLE_CONTAINER_STOP_TIMEOUT ?= 60
+PREBAKE_IMAGES ?= false
+
 # Default: full demo + observability stack + extras stub
 DOCKER_COMPOSE_FILES=$(DOCKER_COMPOSE_FILES_FULL) $(DOCKER_COMPOSE_FILES_OBSERVABILITY) $(DOCKER_COMPOSE_FILES_EXTRAS)
 
@@ -314,6 +324,48 @@ start-minimal-no-o11y:
 	@echo "Go to http://localhost:8080 for the demo UI."
 	@echo "Go to http://localhost:8080/feature/ to change feature flags."
 	@echo "Go to http://localhost:8080/telemetry/ for the Weaver generated telemetry documentation."
+
+# Single-container mode: the whole demo inside one Docker-in-Docker container,
+# exporting to an external OTLP destination. See single-container/README.md.
+.PHONY: build-single-container
+build-single-container:
+	$(DOCKER_CMD) build -f single-container/Dockerfile -t $(SINGLE_CONTAINER_IMAGE) .
+ifeq ($(PREBAKE_IMAGES),true)
+	$(DOCKER_CMD) buildx build --allow security.insecure \
+		-f single-container/prebake/Dockerfile \
+		--build-arg BASE_IMAGE=$(SINGLE_CONTAINER_IMAGE) \
+		--load -t $(SINGLE_CONTAINER_IMAGE) .
+endif
+
+.PHONY: start-single-container
+start-single-container:
+	$(DOCKER_CMD) volume create $(SINGLE_CONTAINER_NAME)-data
+	$(DOCKER_CMD) run --detach --privileged --name $(SINGLE_CONTAINER_NAME) \
+		--memory=$(SINGLE_CONTAINER_MEMORY) \
+		--stop-timeout $(SINGLE_CONTAINER_STOP_TIMEOUT) \
+		--publish 8080:8080 --publish 10000:10000 \
+		--publish 8013:8013 --publish 8016:8016 \
+		--publish 4317:4317 --publish 4318:4318 \
+		--env OTLP_EXPORT_PROTOCOL --env OTLP_EXPORT_ENDPOINT_GRPC \
+		--env OTLP_EXPORT_ENDPOINT_HTTP --env OTLP_EXPORT_HEADERS \
+		--env OTLP_EXPORT_HEADERS_GRPC --env OTLP_EXPORT_HEADERS_HTTP \
+		--env OTLP_EXPORT_INSECURE \
+		--volume $(SINGLE_CONTAINER_NAME)-data:/demo-docker \
+		$(SINGLE_CONTAINER_IMAGE)
+	@echo ""
+	@echo "OpenTelemetry Demo is starting in a single container."
+	@echo "The first start pulls the service images and takes several minutes;"
+	@echo "follow it with: docker logs -f $(SINGLE_CONTAINER_NAME)"
+	@echo "Go to http://localhost:8080 for the demo UI."
+	@echo "Go to http://localhost:8080/feature/ to change feature flags."
+
+.PHONY: stop-single-container
+stop-single-container:
+	-$(DOCKER_CMD) stop $(SINGLE_CONTAINER_NAME)
+	-$(DOCKER_CMD) rm $(SINGLE_CONTAINER_NAME)
+	@echo ""
+	@echo "OpenTelemetry Demo single container is stopped."
+	@echo "Its image cache survives in the $(SINGLE_CONTAINER_NAME)-data volume."
 
 .PHONY: start-profiling
 start-profiling:

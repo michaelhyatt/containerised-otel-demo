@@ -1,0 +1,10 @@
+*
+!.env
+!compose.extras.yaml
+!compose.single-container.yaml
+!compose.yaml
+!otel-config.yml
+!single-container/entrypoint.sh
+!src/flagd
+!src/otel-collector
+!src/postgresql/init.sql

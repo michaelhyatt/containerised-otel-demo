@@ -1,0 +1,82 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# Single-container layer: trims the core demo for running inside one
+# Docker-in-Docker container and exports telemetry to an external destination
+# instead of a bundled observability stack.
+#
+# Usage:
+#   docker compose -f compose.yaml -f compose.single-container.yaml up
+#
+# See single-container/README.md. This layer is applied instead of
+# compose.observability.yaml and compose.full.yaml, never alongside them.
+
+services:
+  # Drop telemetry-docs by removing the only dependency on it. Callers must
+  # also avoid naming it in `docker compose up`, since an override file cannot
+  # delete a service definition.
+  frontend-proxy:
+    depends_on: !override
+      frontend:
+        condition: service_healthy
+      flagd-ui:
+        condition: service_healthy
+    ports: !override
+      - "${ENVOY_PORT}:${ENVOY_PORT}"
+      - "${ENVOY_ADMIN_PORT}:${ENVOY_ADMIN_PORT}"
+
+  # Publish flagd on fixed ports so failure scenarios can be driven from
+  # outside the container without going through the UI.
+  flagd:
+    ports: !override
+      - "${FLAGD_PORT}:${FLAGD_PORT}"
+      - "${FLAGD_OFREP_PORT}:${FLAGD_OFREP_PORT}"
+
+  flagd-ui:
+    deploy:
+      resources:
+        limits:
+          memory: 175M
+
+  # The browser scenario stays enabled; Chromium keeps the full 512M limit set
+  # by compose.yaml. shm_size guards the renderer against the 64M default when
+  # running nested inside another container.
+  load-generator:
+    shm_size: 256m
+
+  recommendation:
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
+  # Export to an external destination selected by OTLP_EXPORT_PROTOCOL
+  # (grpc|http|both), drop the /hostfs mount along with the host_metrics
+  # receiver, and publish the OTLP ports so the collector can also ingest
+  # telemetry from outside the container.
+  otel-collector:
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    command: !override
+      - --config=/etc/otelcol-config.yml
+      - --config=/etc/otelcol-config-export-${OTLP_EXPORT_PROTOCOL}.yml
+      - --config=/etc/otelcol-config-extras.yml
+      - --feature-gates=service.profilesSupport
+    volumes: !override
+      - ${DOCKER_SOCK}:/var/run/docker.sock:ro
+      - ${OTEL_COLLECTOR_CONFIG}:/etc/otelcol-config.yml
+      - ./src/otel-collector/otelcol-config-export-grpc.yml:/etc/otelcol-config-export-grpc.yml
+      - ./src/otel-collector/otelcol-config-export-http.yml:/etc/otelcol-config-export-http.yml
+      - ./src/otel-collector/otelcol-config-export-both.yml:/etc/otelcol-config-export-both.yml
+      - ${OTEL_COLLECTOR_CONFIG_EXTRAS}:/etc/otelcol-config-extras.yml
+    ports: !override
+      - "${OTEL_COLLECTOR_PORT_GRPC}:${OTEL_COLLECTOR_PORT_GRPC}"
+      - "${OTEL_COLLECTOR_PORT_HTTP}:${OTEL_COLLECTOR_PORT_HTTP}"
+    environment:
+      - OTLP_EXPORT_ENDPOINT_GRPC
+      - OTLP_EXPORT_ENDPOINT_HTTP
+      - OTLP_EXPORT_HEADERS_GRPC
+      - OTLP_EXPORT_HEADERS_HTTP
+      - OTLP_EXPORT_INSECURE
