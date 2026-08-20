@@ -107,7 +107,9 @@ pull_images() {
   log "pulling service images (first start can take several minutes)"
   # --policy missing keeps a prebaked image from re-pulling on every start.
   # shellcheck disable=SC2086
-  compose pull --quiet --policy missing ${SERVICES}
+  compose pull --quiet --policy missing ${SERVICES} || fail "could not pull the
+service images. This image only carries the demo's configuration; it needs
+access to ghcr.io on first start, unless it was built with PREBAKE_IMAGES=true."
 }
 
 on_term() {

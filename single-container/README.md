@@ -55,6 +55,13 @@ mid-shutdown.
 Both transports send OTLP protobuf; the HTTP one sends
 `content-type: application/x-protobuf`.
 
+`OTLP_EXPORT_INSECURE` defaults to `true`, which suits the plaintext collector
+most people point this at first. Set it to `false` for any destination that is
+not on your own machine, or the exporter will not verify its certificate. Note
+also that whatever you put in `OTLP_EXPORT_HEADERS` is visible in
+`docker inspect`, so treat a token there the way you would any other environment
+variable secret.
+
 With a token and TLS:
 
 ```bash
@@ -87,6 +94,10 @@ which is loaded last and merges into the exporter definitions.
 | 8016 | flagd OFREP endpoint |
 | 10000 | Envoy admin |
 | 4317 / 4318 | the demo's own collector, if you want to feed telemetry into it |
+
+`make start-single-container` publishes 4317 and 4318, which collides with a
+collector already listening on those ports on the host. Drop those two
+`--publish` flags if you are running your OTLP destination locally.
 
 `/jaeger`, `/grafana` and `/telemetry` return 503: those services are
 deliberately absent.
@@ -130,8 +141,8 @@ running with the browser scenario, after the stack settled:
 | Outer container CPU | roughly 0.7 cores idle-ish, peaking above 3 cores while the browser scenario works |
 | Largest services | ad 220 MiB, load-generator 190 MiB, otel-collector 170 MiB, flagd-ui 150 MiB, frontend 100 MiB |
 
-For comparison, the default `make start` declares about 6.9 GB of memory limits
-across its four Compose layers; this mode declares about 2.7 GB.
+For comparison, the default `make start` declares 6.75 GiB of memory limits
+across 28 services; this mode declares 2.68 GiB across 19.
 
 Where the savings come from: the observability layer (2664M of declared limits)
 and the Kafka group (1080M) are never started, telemetry-docs is dropped (100M),
