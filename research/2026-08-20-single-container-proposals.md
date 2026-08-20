@@ -16,8 +16,9 @@ Context:
 Overview: build one image on `docker:dind` that carries the repo's compose
 files, `.env`, flagd flags and collector configs, plus every demo service image
 pre-loaded into the daemon's data root. An entrypoint starts `dockerd`, waits
-for readiness, and runs `docker compose -f compose.yaml -f compose.single-container.yaml up`
-against the core layer only. The observability layer is simply never loaded, so
+for readiness, and runs `docker compose -f compose.yaml
+-f compose.single-container.yaml up` against the core layer only. The
+observability layer is simply never loaded, so
 Jaeger, Grafana, Prometheus, OpenSearch and OpAMP never exist — this reuses the
 seam the repo already maintains (`Makefile:309-316` already does exactly this
 outside a container).

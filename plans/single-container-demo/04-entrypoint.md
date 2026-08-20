@@ -24,16 +24,23 @@ cleanly so `docker stop` does not leave a wedged daemon or orphaned state.
    unknown values with a clear error. Compose interpolates the value into the
    collector's `--config` path, so an unchecked typo would surface as a missing
    file deep in the collector's startup instead.
-4. Run `docker compose --env-file .env -f compose.yaml -f compose.single-container.yaml up -d --no-build`
+4. Run `docker compose --env-file .env -f compose.yaml
+   -f compose.single-container.yaml up -d --no-build`
    from `/demo`, naming the 19 services explicitly. `--no-build` matters: every
    service carries a `build:` section, so Compose would otherwise try to build
    from source when an image is missing.
 5. Stream inner logs to stdout (`docker compose logs -f --tail=0`) so
    `docker logs` on the outer container is useful, and keep the script in the
    foreground.
-6. Trap `TERM`/`INT`: `docker compose down --timeout 10 --remove-orphans`, then
-   stop dockerd, then exit with the right code.
-7. Keep the file `sh`-compatible (Alpine busybox) and start it with the
+6. Trap `TERM`/`INT`: `docker compose down --remove-orphans`, then stop dockerd,
+   then exit with the right code. Stopping 19 services takes roughly 30s, well
+   past Docker's default 10s grace, so the container needs `--stop-timeout` or
+   it exits 137 mid-shutdown.
+7. Clear containers left behind by a previous run before starting. When the data
+   root is a volume, so are the container definitions in it, and their restart
+   policies resurrect the previous run — with its previous environment — the
+   moment dockerd starts.
+8. Keep the file `sh`-compatible (Alpine busybox) and start it with the
    `#!/bin/sh` plus licence header that `.licenserc.json` requires.
 
 ## Acceptance criteria

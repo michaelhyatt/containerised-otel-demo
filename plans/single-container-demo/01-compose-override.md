@@ -43,7 +43,8 @@ shrinks the footprint and fixes the host ports the outer container will publish.
 
 ## Acceptance criteria
 
-- `docker compose --env-file .env -f compose.yaml -f compose.single-container.yaml config`
+- `docker compose --env-file .env -f compose.yaml
+  -f compose.single-container.yaml config`
   resolves without error, and `frontend-proxy` no longer depends on
   `telemetry-docs`. The service definition itself still appears in the resolved
   model — an override file cannot delete one — so the running set is constrained

@@ -13,7 +13,8 @@ discoverable alongside the other run modes.
 
 1. Add `build-single-container`, honouring a `PREBAKE_IMAGES` variable and
    defaulting to the thin build.
-2. Add `start-single-container`: `docker run -d --privileged --name otel-demo-single --memory=4g`
+2. Add `start-single-container`: `docker run -d --privileged
+   --name otel-demo-single --memory=4g`
    with the port publications from the design doc, passing the `OTLP_EXPORT_*`
    variables through from the environment, and echo the reachable URLs the way
    the existing targets do.

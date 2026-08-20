@@ -92,6 +92,16 @@ stop_dockerd() {
   done
 }
 
+# When the data root is a volume, so are the container definitions in it, and
+# their restart policies bring the previous run back up the moment dockerd
+# starts. Clear them before pulling so nothing runs with stale configuration
+# during the window before compose reconciles.
+cleanup_previous_run() {
+  [ -n "$(docker ps --all --quiet)" ] || return 0
+  log "removing containers left over from a previous run"
+  compose down --remove-orphans --timeout 5 || true
+}
+
 pull_images() {
   [ "${SKIP_PULL}" = "true" ] && return 0
   log "pulling service images (first start can take several minutes)"
@@ -105,7 +115,9 @@ on_term() {
   shutting_down=true
   log "shutting down"
   [ -n "${LOGS_PID}" ] && kill -TERM "${LOGS_PID}" 2>/dev/null || true
-  compose down --timeout 10 --remove-orphans || true
+  # Stopping 19 services still takes longer than Docker's default 10s grace, so
+  # the container needs --stop-timeout; see single-container/README.md.
+  compose down --timeout 5 --remove-orphans || true
   stop_dockerd
   exit 0
 }
@@ -127,6 +139,7 @@ run() {
   trap on_term TERM INT
   cd "${DEMO_DIR}"
 
+  cleanup_previous_run
   pull_images
 
   log "starting the demo (export protocol ${OTLP_EXPORT_PROTOCOL})"

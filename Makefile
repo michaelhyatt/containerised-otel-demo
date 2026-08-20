@@ -35,6 +35,8 @@ DOCKER_COMPOSE_FILES_AGENT=-f compose.agent.yaml
 SINGLE_CONTAINER_IMAGE ?= otel-demo-single:latest
 SINGLE_CONTAINER_NAME ?= otel-demo-single
 SINGLE_CONTAINER_MEMORY ?= 4g
+# Stopping the nested services takes longer than Docker's default 10s grace.
+SINGLE_CONTAINER_STOP_TIMEOUT ?= 60
 PREBAKE_IMAGES ?= false
 
 # Default: full demo + observability stack + extras stub
@@ -340,6 +342,7 @@ start-single-container:
 	$(DOCKER_CMD) volume create $(SINGLE_CONTAINER_NAME)-data
 	$(DOCKER_CMD) run --detach --privileged --name $(SINGLE_CONTAINER_NAME) \
 		--memory=$(SINGLE_CONTAINER_MEMORY) \
+		--stop-timeout $(SINGLE_CONTAINER_STOP_TIMEOUT) \
 		--publish 8080:8080 --publish 10000:10000 \
 		--publish 8013:8013 --publish 8016:8016 \
 		--publish 4317:4317 --publish 4318:4318 \
@@ -357,7 +360,8 @@ start-single-container:
 
 .PHONY: stop-single-container
 stop-single-container:
-	-$(DOCKER_CMD) rm --force $(SINGLE_CONTAINER_NAME)
+	-$(DOCKER_CMD) stop $(SINGLE_CONTAINER_NAME)
+	-$(DOCKER_CMD) rm $(SINGLE_CONTAINER_NAME)
 	@echo ""
 	@echo "OpenTelemetry Demo single container is stopped."
 	@echo "Its image cache survives in the $(SINGLE_CONTAINER_NAME)-data volume."

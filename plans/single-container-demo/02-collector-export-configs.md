@@ -37,8 +37,8 @@ or both, without editing the base collector config.
    replaces arrays rather than merging them:
    - `traces`: exporters become the external exporter(s) plus `span_metrics`;
      `debug` is dropped.
-   - `metrics`: receivers become
-     `[docker_stats, http_check/frontend-proxy, nginx, otlp, redis, postgresql, prometheus/ad, span_metrics]`
+   - `metrics`: receivers become `[docker_stats, http_check/frontend-proxy,
+     nginx, otlp, redis, postgresql, prometheus/ad, span_metrics]`
      — that is the base list minus `host_metrics`; exporters become the external
      exporter(s).
    - `logs` and `profiles`: exporters become the external exporter(s).
