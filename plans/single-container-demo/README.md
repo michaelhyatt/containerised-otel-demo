@@ -142,15 +142,25 @@ survives restarts and can be edited from the host.
 
 | Variable | Meaning |
 |---|---|
-| `OTLP_EXPORT_PROTOCOL` | `grpc`, `http`, or `both`; selects which export config the collector loads |
+| `OTLP_EXPORT_PROTOCOL` | `grpc`, `http`, or `both`; interpolated straight into the collector's `--config` path, so it is the only selector |
 | `OTLP_EXPORT_ENDPOINT_GRPC` | host:port for the OTLP/gRPC exporter |
 | `OTLP_EXPORT_ENDPOINT_HTTP` | base URL for the OTLP/HTTP exporter |
-| `OTLP_EXPORT_HEADER_NAME` / `_VALUE` | optional single auth header |
-| `OTLP_EXPORT_INSECURE` | skip TLS for the gRPC exporter |
+| `OTLP_EXPORT_HEADERS` | inline map of headers, e.g. `{"authorization": "Bearer abc"}`; `{}` for none |
+| `OTLP_EXPORT_INSECURE` | skip TLS verification |
 
 Because the collector replaces rather than appends arrays, each export config
 restates the full pipeline exporter list. Traces keep `span_metrics`; `debug` is
 dropped everywhere.
+
+The endpoints default to `otlp-destination-not-configured`, which fails DNS
+resolution and names itself in the collector's retry logs. A localhost default
+would have been worse than useless: the collector would export into its own
+receivers and loop.
+
+Each export config also has to restate `host_metrics.root_path`. The receiver is
+removed from the metrics pipeline and never starts, but the collector validates
+the config of unused components, so the base config's `/hostfs` path fails
+startup once this layer drops that mount.
 
 ## Testing plan
 

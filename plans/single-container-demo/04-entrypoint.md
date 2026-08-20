@@ -17,8 +17,10 @@ cleanly so `docker stop` does not leave a wedged daemon or orphaned state.
    unavailable and the daemon falls back to `vfs`, which would be unusably slow
    and disk-hungry.
 2. Poll `docker info` until the daemon answers, with a bounded timeout.
-3. Resolve `OTEL_COLLECTOR_EXPORT_CONFIG` from `OTLP_EXPORT_PROTOCOL`
-   (`grpc`/`http`/`both`), rejecting unknown values with a clear error.
+3. Validate `OTLP_EXPORT_PROTOCOL` against `grpc`/`http`/`both`, rejecting
+   unknown values with a clear error. Compose interpolates the value into the
+   collector's `--config` path, so an unchecked typo would surface as a missing
+   file deep in the collector's startup instead.
 4. Run `docker compose --env-file .env -f compose.yaml -f compose.single-container.yaml up -d --no-build`
    from `/demo`, naming the 19 services explicitly. `--no-build` matters: every
    service carries a `build:` section, so Compose would otherwise try to build
